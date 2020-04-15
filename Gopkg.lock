@@ -18,6 +18,47 @@
   version = "v1.1.1"
 
 [[projects]]
+  digest = "1:19525e48b45af69339bd7c2812137dbd1e650a78fc09c7c75482e307d51aa28d"
+  name = "go.uber.org/atomic"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "845920076a298bdb984fb0f1b86052e4ca0a281c"
+  version = "v1.6.0"
+
+[[projects]]
+  digest = "1:4d7b575f9ad25fe91efac81564ea334d9a6673389a6987b177cc4d8958c0dc20"
+  name = "go.uber.org/dig"
+  packages = [
+    ".",
+    "internal/digreflect",
+    "internal/dot",
+  ]
+  pruneopts = "UT"
+  revision = "781ef046233be0a0bf1efcb95d41e46042624ccb"
+  version = "v1.9.0"
+
+[[projects]]
+  digest = "1:912ddae368876df1fb50d634a5f319e253282fdadd1ebe98111569965fee591e"
+  name = "go.uber.org/fx"
+  packages = [
+    ".",
+    "internal/fxlog",
+    "internal/fxreflect",
+    "internal/lifecycle",
+  ]
+  pruneopts = "UT"
+  revision = "6a45c5e966c55483b8ff92d8b96d8ddf6bd79cfb"
+  version = "v1.12.0"
+
+[[projects]]
+  digest = "1:a23ddd39502ba94e2a72815a946d0edec801defcf0a0c0530d04acee1f455128"
+  name = "go.uber.org/multierr"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "b587143a48b62b01d337824eab43700af6ffe222"
+  version = "v1.5.0"
+
+[[projects]]
   digest = "1:55b110c99c5fdc4f14930747326acce56b52cfce60b24b1c03ef686ac0e46bb1"
   name = "gopkg.in/yaml.v2"
   packages = ["."]
@@ -28,6 +69,9 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  input-imports = ["github.com/jinzhu/configor"]
+  input-imports = [
+    "github.com/jinzhu/configor",
+    "go.uber.org/fx",
+  ]
   solver-name = "gps-cdcl"
   solver-version = 1
