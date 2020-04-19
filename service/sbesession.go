@@ -1,10 +1,13 @@
 package service
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"log"
 	"net"
+	"sbe/entity"
 	"sbe/handler"
 	fix "sbe/sbe/iLinkBinary"
 )
@@ -12,6 +15,28 @@ import (
 type sbeSession struct {
 	Conn net.Conn
 	h    handler.OrderEntry
+}
+
+func NewSBEServerSession(c net.Conn,  h handler.OrderEntry) entity.SBESession {
+	return &sbeSession{
+		Conn:  c,
+		h: h,
+	}
+}
+
+func (s* sbeSession) Send(msg entity.SBEMessage) error {
+	min := fix.NewSbeGoMarshaller()
+	var buf = new(bytes.Buffer)
+	if err := msg.Encode(min, buf, true); err != nil {
+		fmt.Println("Encoding Error", err)
+		return err
+	}
+	_, err := s.Conn.Write(buf.Bytes())
+	return err
+}
+
+func (s* sbeSession) Close() error {
+	return s.Conn.Close()
 }
 
 func (s *sbeSession) Serve() error {
@@ -53,11 +78,11 @@ func (s *sbeSession) Serve() error {
 		case 508:
 			err = s.onRetransmissionRequest(msg.(*fix.RetransmitRequest508))
 		case 514:
-			s.h.OnOrderNew(context.Background(), msg.(*fix.NewOrderSingle514), &s.Conn)
+			s.h.OnOrderNew(context.Background(), msg.(*fix.NewOrderSingle514), s)
 		case 516:
-			s.h.OnOrderCancel(context.Background(), msg.(*fix.OrderCancelRequest516), &s.Conn)
+			s.h.OnOrderCancel(context.Background(), msg.(*fix.OrderCancelRequest516), s)
 		case 515:
-			s.h.OnOrderModify(context.Background(), msg.(*fix.OrderCancelReplaceRequest515), &s.Conn)
+			s.h.OnOrderModify(context.Background(), msg.(*fix.OrderCancelReplaceRequest515), s)
 		}
 		if err != nil {
 			log.Println("Failed to process msg", err)
@@ -68,7 +93,15 @@ func (s *sbeSession) Serve() error {
 }
 
 func (s *sbeSession) onNegotiate(msg *fix.Negotiate500) error {
-	return nil
+	// always ack
+	resp :=  fix.NegotiationResponse501{}
+	resp.UUID = msg.UUID
+	resp.FaultToleranceIndicator = fix.FTI.Primary
+	resp.SecretKeySecureIDExpiration  = 100
+	resp.RequestTimestamp = msg.RequestTimestamp
+	resp.PreviousSeqNo = 0
+	resp.PreviousUUID = 0
+	return s.Send(&resp)
 }
 
 func (s *sbeSession) onEstablish(msg *fix.Establish503) error {

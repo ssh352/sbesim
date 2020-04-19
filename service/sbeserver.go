@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net"
+	"sbe/entity"
 	"sbe/handler"
 	"sync"
 )
@@ -25,7 +26,7 @@ func New(oeh handler.OrderEntry) SBEServer {
 type sbeServer struct {
 	oe handler.OrderEntry
 	listener net.Listener
-	sessions []*sbeSession
+	sessions []entity.SBESession
 	mutex   *sync.Mutex
 }
 
@@ -54,25 +55,22 @@ func (s *sbeServer) Start(ctx context.Context)  error{
 
 func (s *sbeServer) Stop(ctx context.Context) error {
 	for _, s := range s.sessions {
-		s.Conn.Close()
+		s.Close()
 	}
 	s.sessions = nil
 	s.listener.Close()
 	return nil
 }
 
-func (s *sbeServer) accept(conn net.Conn) *sbeSession {
+func (s *sbeServer) accept(conn net.Conn) entity.SBESession {
 	log.Printf("Accepting connection from %v, total clients: %v", conn.RemoteAddr().String(), len(s.sessions)+1)
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	client := &sbeSession{
-		Conn: conn,
-		h: s.oe,
-	}
+	client := NewSBEServerSession(conn, s.oe)
 	s.sessions = append(s.sessions, client)
 	return client
 }
-func (s *sbeServer) remove(client *sbeSession) {
+func (s *sbeServer) remove(client entity.SBESession) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	// remove the connections from clients array
@@ -81,11 +79,11 @@ func (s *sbeServer) remove(client *sbeSession) {
 			s.sessions = append(s.sessions[:i], s.sessions[i+1:]...)
 		}
 	}
-	log.Printf("Closing connection from %v", client.Conn.RemoteAddr().String())
-	client.Conn.Close()
+	log.Printf("Closing connection ")
+	client.Close()
 }
 
-func (s *sbeServer) serve(client *sbeSession) {
+func (s *sbeServer) serve(client entity.SBESession) {
 	defer s.remove(client)
 	client.Serve()
 }

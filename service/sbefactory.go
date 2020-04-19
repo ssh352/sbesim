@@ -2,16 +2,11 @@ package service
 
 import (
 	"errors"
-	"io"
+	"sbe/entity"
 	fix "sbe/sbe/iLinkBinary"
 )
 
-type sbeMsg interface {
-	Decode(_m *fix.SbeGoMarshaller, _r io.Reader, actingVersion uint16, blockLength uint16, doRangeCheck bool) error
-	Encode(_m *fix.SbeGoMarshaller, _w io.Writer, doRangeCheck bool) error
-}
-
-func createMsg(msgID int) (sbeMsg, error) {
+func createMsg(msgID int) (entity.SBEMessage, error) {
 	switch msgID {
 	case 500:
 		return &fix.Negotiate500{}, nil
