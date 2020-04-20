@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"log"
@@ -13,29 +14,65 @@ import (
 )
 
 type sbeSession struct {
-	Conn net.Conn
-	h    handler.OrderEntry
+	Conn  net.Conn
+	h     handler.OrderEntry
+	sUUID uint64
+	seqNo uint32
 }
 
-func NewSBEServerSession(c net.Conn,  h handler.OrderEntry) entity.SBESession {
+func NewSBEServerSession(c net.Conn, h handler.OrderEntry) entity.SBESession {
 	return &sbeSession{
 		Conn:  c,
-		h: h,
+		h:     h,
+		sUUID: 0,
+		seqNo: 0,
 	}
 }
 
-func (s* sbeSession) Send(msg entity.SBEMessage) error {
+func (s *sbeSession) GetSeqNo() uint32 {
+	return s.seqNo
+}
+func (s *sbeSession) SetSeqNo(v uint32) {
+	s.seqNo = v
+}
+func (s *sbeSession) GetUUID() uint64 {
+	return s.sUUID
+}
+
+func (s *sbeSession) Send(msg entity.SBEMessage) error {
 	min := fix.NewSbeGoMarshaller()
 	var buf = new(bytes.Buffer)
 	if err := msg.Encode(min, buf, true); err != nil {
 		fmt.Println("Encoding Error", err)
 		return err
 	}
-	_, err := s.Conn.Write(buf.Bytes())
+	hdr := fix.MessageHeader{
+		BlockLength: msg.SbeBlockLength(),
+		TemplateId: msg.SbeTemplateId(),
+		SchemaId: msg.SbeSchemaId(),
+		Version : msg.SbeSchemaVersion(),
+	}
+	var hdrBuf =  new(bytes.Buffer)
+	if err := hdr.Encode(min, hdrBuf); err != nil {
+		fmt.Println("Encoding Error", err)
+		return err
+	}
+	hdrBytes := hdrBuf.Bytes()
+	bodyBytes := buf.Bytes()
+	frame := make([]byte, 4)
+	binary.LittleEndian.PutUint16(frame[0:], uint16(len(hdrBytes)) + uint16(len(bodyBytes)))
+	binary.LittleEndian.PutUint16(frame[2:],  0xCAFE)
+	_, err := s.Conn.Write(frame)
+	if err != nil {
+		_, err = s.Conn.Write(hdrBytes)
+	}
+	if err != nil {
+		_, err = s.Conn.Write(bodyBytes)
+	}
 	return err
 }
 
-func (s* sbeSession) Close() error {
+func (s *sbeSession) Close() error {
 	return s.Conn.Close()
 }
 
@@ -94,10 +131,11 @@ func (s *sbeSession) Serve() error {
 
 func (s *sbeSession) onNegotiate(msg *fix.Negotiate500) error {
 	// always ack
-	resp :=  fix.NegotiationResponse501{}
+	resp := fix.NegotiationResponse501{}
 	resp.UUID = msg.UUID
+	s.sUUID = msg.UUID
 	resp.FaultToleranceIndicator = fix.FTI.Primary
-	resp.SecretKeySecureIDExpiration  = 100
+	resp.SecretKeySecureIDExpiration = 100
 	resp.RequestTimestamp = msg.RequestTimestamp
 	resp.PreviousSeqNo = 0
 	resp.PreviousUUID = 0
@@ -105,17 +143,38 @@ func (s *sbeSession) onNegotiate(msg *fix.Negotiate500) error {
 }
 
 func (s *sbeSession) onEstablish(msg *fix.Establish503) error {
-	return nil
+	resp := fix.EstablishmentAck504{}
+	resp.UUID = msg.UUID
+	resp.RequestTimestamp = msg.RequestTimestamp
+	resp.NextSeqNo = s.seqNo + 1
+	s.seqNo = s.seqNo + 1
+	resp.PreviousSeqNo = 0
+	resp.PreviousUUID = 0
+	resp.KeepAliveInterval = msg.KeepAliveInterval
+	resp.FaultToleranceIndicator = fix.FTI.Primary
+	return s.Send(&resp)
 }
 
 func (s *sbeSession) onSequence(msg *fix.Sequence506) error {
-	return nil
+	resp := fix.Sequence506{}
+	resp.FaultToleranceIndicator = fix.FTI.Primary
+	resp.NextSeqNo = s.seqNo + 1
+	resp.UUID = msg.UUID
+	resp.KeepAliveIntervalLapsed = msg.KeepAliveIntervalLapsed
+	return s.Send(&resp)
 }
 
 func (s *sbeSession) onTerminate(msg *fix.Terminate507) error {
-	return nil
+	resp := fix.Terminate507{}
+	resp.UUID = msg.UUID
+	resp.RequestTimestamp = msg.RequestTimestamp
+	resp.ErrorCodes = 0
+	return s.Send(&resp)
 }
 
 func (s *sbeSession) onRetransmissionRequest(msg *fix.RetransmitRequest508) error {
-	return nil
+	resp := fix.RetransmitReject510{}
+	resp.UUID = msg.UUID
+	resp.ErrorCodes = 0
+	return s.Send(&resp)
 }

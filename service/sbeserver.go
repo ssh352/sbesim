@@ -24,10 +24,10 @@ func New(oeh handler.OrderEntry) SBEServer {
 }
 
 type sbeServer struct {
-	oe handler.OrderEntry
+	oe       handler.OrderEntry
 	listener net.Listener
 	sessions []entity.SBESession
-	mutex   *sync.Mutex
+	mutex    *sync.Mutex
 }
 
 func (s *sbeServer) Listen(ctx context.Context, address string) error {
@@ -39,7 +39,7 @@ func (s *sbeServer) Listen(ctx context.Context, address string) error {
 	return err
 }
 
-func (s *sbeServer) Start(ctx context.Context)  error{
+func (s *sbeServer) Start(ctx context.Context) error {
 	for {
 		conn, err := s.listener.Accept()
 		if err != nil {

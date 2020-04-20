@@ -20,6 +20,9 @@ install:
 clean:
 	rm $(BINARY) && rm -rf vendor
 
+.PHONY : fmt
+fmt:
+	$(GOCMD) fmt ./
 
 .PHONY: help
 
@@ -29,4 +32,5 @@ help:
 	@echo build -- build binary
 	@echo install -- install dependencies
 	@echo clean -- clean up dependencies and binaries
+	@echo fmt -- auto format file
 	@echo run -- start service

@@ -1,4 +1,5 @@
 package service
+
 import "go.uber.org/fx"
 
 // Module ...
