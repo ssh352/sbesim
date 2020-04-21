@@ -24,6 +24,14 @@ clean:
 fmt:
 	$(GOCMD) fmt ./
 
+.PHONY : mockgen
+mockgen:
+	rm -rf ./mock/* && $(GOCMD) generate ./...
+
+.PHONY : test
+test:
+	$(GOCMD)  test sbe/... -cover
+
 .PHONY: help
 
 # Show this help.
@@ -33,4 +41,6 @@ help:
 	@echo install -- install dependencies
 	@echo clean -- clean up dependencies and binaries
 	@echo fmt -- auto format file
+	@echo mockgen -- generate mock package
+	@echo test -- run unit test
 	@echo run -- start service

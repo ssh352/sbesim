@@ -14,7 +14,7 @@ func New() OrderEntry {
 	}
 }
 
-// Lotto ...
+//go:generate mockgen -destination=../mock/handler/mock_orderentry.go -package=mockhandler  sbe/handler OrderEntry
 type OrderEntry interface {
 	OnOrderNew(ctx context.Context, no *fix.NewOrderSingle514, s entity.SBESession) error
 	OnOrderCancel(ctx context.Context, co *fix.OrderCancelRequest516, s entity.SBESession) error
