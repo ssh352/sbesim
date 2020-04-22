@@ -18,7 +18,7 @@ install:
 
 .PHONY : clean
 clean:
-	rm $(BINARY) && rm -rf vendor
+	rm -f $(BINARY) && rm -rf vendor && rm -f inttest
 
 .PHONY : fmt
 fmt:
@@ -32,6 +32,10 @@ mockgen:
 test:
 	$(GOCMD)  test sbe/... -cover
 
+.PHONY : inttest
+inttest:
+	cd integration && $(GOBUILD) -v -o inttest && mv inttest ../ && cd .. && ./inttest
+
 .PHONY: help
 
 # Show this help.
@@ -43,4 +47,5 @@ help:
 	@echo fmt -- auto format file
 	@echo mockgen -- generate mock package
 	@echo test -- run unit test
+	@echo inttest -- run integration test
 	@echo run -- start service

@@ -91,7 +91,7 @@ func (s *sbeSession) Serve() error {
 			return err
 		}
 		templateID := hdr.TemplateId
-		msg, err := createMsg(int(templateID))
+		msg, err := CreateMsg(int(templateID))
 		if err != nil {
 			log.Printf("failed to create msg due to %v", err)
 			return err

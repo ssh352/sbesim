@@ -6,7 +6,7 @@ import (
 	fix "sbe/sbe/iLinkBinary"
 )
 
-func createMsg(msgID int) (entity.SBEMessage, error) {
+func CreateMsg(msgID int) (entity.SBEMessage, error) {
 	switch msgID {
 	case 500:
 		return &fix.Negotiate500{}, nil

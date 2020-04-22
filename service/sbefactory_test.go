@@ -15,11 +15,11 @@ func TestCreateMsg(t *testing.T) {
 	}
 	assert := assert.New(t)
 	for _, v := range valid {
-		r, err := createMsg(v)
+		r, err := CreateMsg(v)
 		assert.NotNil(r)
 		assert.NoError(err)
 	}
-	r, err := createMsg(199)
+	r, err := CreateMsg(199)
 	assert.Nil(r)
 	assert.Error(err)
 }
