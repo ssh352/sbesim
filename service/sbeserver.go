@@ -20,6 +20,7 @@ type SBEServer interface {
 func New(oeh handler.OrderEntry) SBEServer {
 	return &sbeServer{
 		oe: oeh,
+		mutex: new(sync.Mutex),
 	}
 }
 

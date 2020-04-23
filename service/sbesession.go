@@ -42,7 +42,7 @@ func (s *sbeSession) GetUUID() uint64 {
 func (s *sbeSession) Send(msg entity.SBEMessage) error {
 	min := fix.NewSbeGoMarshaller()
 	var buf = new(bytes.Buffer)
-	if err := msg.Encode(min, buf, true); err != nil {
+	if err := msg.Encode(min, buf, false); err != nil {
 		fmt.Println("Encoding Error", err)
 		return err
 	}
@@ -62,14 +62,16 @@ func (s *sbeSession) Send(msg entity.SBEMessage) error {
 	frame := make([]byte, 4)
 	binary.LittleEndian.PutUint16(frame[0:], uint16(len(hdrBytes)) + uint16(len(bodyBytes)))
 	binary.LittleEndian.PutUint16(frame[2:],  0xCAFE)
-	_, err := s.Conn.Write(frame)
-	if err != nil {
-		_, err = s.Conn.Write(hdrBytes)
+	if _, err := s.Conn.Write(frame); err != nil {
+		return err
 	}
-	if err != nil {
-		_, err = s.Conn.Write(bodyBytes)
+	if _, err := s.Conn.Write(hdrBytes); err != nil {
+		return err
 	}
-	return err
+	if _, err := s.Conn.Write(bodyBytes); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s *sbeSession) Close() error {

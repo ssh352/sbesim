@@ -5,15 +5,16 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	faker "github.com/bxcodec/faker"
 	"io"
 	"log"
+	"math/rand"
 	"net"
 	"os"
 	"sbe/configure"
 	"sbe/entity"
 	fix "sbe/sbe/iLinkBinary"
 	"sbe/service"
+	"strconv"
 	"time"
 )
 
@@ -40,25 +41,44 @@ func Send(con net.Conn, msg entity.SBEMessage) error {
 	frame := make([]byte, 4)
 	binary.LittleEndian.PutUint16(frame[0:], uint16(len(hdrBytes))+uint16(len(bodyBytes)))
 	binary.LittleEndian.PutUint16(frame[2:], 0xCAFE)
+	log.Printf("write length %d for frame body 2 bytes", len(hdrBytes)+len(bodyBytes))
+	log.Printf("write endian %d 2 bytes", 0xCAFE)
 	_, err := con.Write(frame)
 	if err != nil {
-		_, err = con.Write(hdrBytes)
+		return err
 	}
+	var n int
+	n, err = con.Write(hdrBytes)
 	if err != nil {
-		_, err = con.Write(bodyBytes)
+		return err
+	}
+	log.Printf("write %d bytes for header", n)
+	n, err = con.Write(bodyBytes)
+	if err == nil {
+		log.Printf("write %d bytes for body", n)
 	}
 	return err
+}
+
+func randStr(len int) string {
+	res := ""
+	for i := 0; i < len; i++ {
+		res = res + strconv.Itoa(rand.Int()%10)
+	}
+	return res
 }
 
 func RunIntTest(ctx context.Context, conn net.Conn) error {
 	log.Println("sending negotiate msg")
 
 	negotiate := fix.Negotiate500{}
-	err := faker.FakeData(&negotiate)
-	if err != nil {
-		return err
-	}
-	if err = Send(conn, &negotiate); err != nil {
+	negotiate.UUID = rand.Uint64()
+	negotiate.RequestTimestamp = uint64(time.Now().UTC().UnixNano())
+	copy(negotiate.AccessKeyID[:], randStr(20))
+	copy(negotiate.Firm[:], randStr(5))
+	copy(negotiate.HMACSignature[:], randStr(32))
+	copy(negotiate.Session[:], randStr(3))
+	if err := Send(conn, &negotiate); err != nil {
 		return err
 	}
 	log.Println("negotiate msg sent")
@@ -82,17 +102,24 @@ func RunIntTest(ctx context.Context, conn net.Conn) error {
 			log.Printf("failed to create msg due to %v", err)
 			return err
 		}
-		if err := msg.Decode(m, conn, hdr.Version, hdr.BlockLength, true); err != nil {
+		if err := msg.Decode(m, conn, hdr.Version, hdr.BlockLength, false); err != nil {
 			log.Println("Failed to decode msg", err)
 			return err
 		}
 		if templateID == 501 { // negotiate done
 			log.Println("sending establish msg")
 			establish := fix.Establish503{}
-			err = faker.FakeData(&establish)
-			if err != nil {
-				return err
-			}
+			establish.Session = negotiate.Session
+			establish.HMACSignature = negotiate.HMACSignature
+			establish.Firm = negotiate.Firm
+			establish.AccessKeyID = negotiate.AccessKeyID
+			establish.RequestTimestamp = uint64(time.Now().UTC().UnixNano())
+			establish.NextSeqNo = 1
+			establish.UUID = negotiate.UUID
+			establish.KeepAliveInterval = 5
+			copy(establish.TradingSystemName[:], randStr(30))
+			copy(establish.TradingSystemVendor[:], randStr(10))
+			copy(establish.TradingSystemVersion[:], randStr(10))
 			if err = Send(conn, &establish); err != nil {
 				return err
 			}
@@ -100,12 +127,27 @@ func RunIntTest(ctx context.Context, conn net.Conn) error {
 		}
 		if templateID == 504 { // establish ack
 			log.Println("sending new order")
-			neworder := fix.NewOrderSingle514{}
-			err = faker.FakeData(&neworder)
-			if err != nil {
-				return err
-			}
-			if err = Send(conn, &neworder); err != nil {
+			order := fix.NewOrderSingle514{}
+			order.SeqNum = 1
+			order.OrderQty = rand.Uint32()
+			order.ManualOrderIndicator = fix.ManualOrdIndReq.Automated
+			order.TimeInForce = fix.TimeInForce.Day
+			order.Side = fix.SideReq.Buy
+			order.OrdType = fix.OrderTypeReq.Limit
+			order.ExpireDate = 321
+			order.SecurityID = 123
+			order.SendingTimeEpoch = rand.Uint64()
+			order.Price.Mantissa = rand.Int63()
+			order.Price.Exponent = 1
+			order.StopPx.Mantissa = rand.Int63()
+			order.StopPx.Exponent = 2
+			order.PartyDetailsListReqID = rand.Uint64()
+			copy(order.ClOrdID[:], randStr(20))
+			copy(order.Location[:], "US/IL")
+			copy(order.SenderID[:], randStr(20))
+			order.LiquidityFlag = fix.BooleanNULL.False
+			order.MinQty = rand.Uint32()
+			if err = Send(conn, &order); err != nil {
 				return err
 			}
 			log.Println("new order sent")
@@ -145,6 +187,8 @@ func main() {
 	if err != nil {
 		code = 1
 		fmt.Printf("failure: %s", err.Error())
+	} else {
+		log.Println("Integration passed")
 	}
 	os.Exit(code)
 }

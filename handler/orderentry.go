@@ -53,6 +53,7 @@ func (o *orderEntry) OnOrderNew(ctx context.Context, no *fix.NewOrderSingle514, 
 	ack.PossRetransFlag = fix.BooleanFlag.False
 	ack.SeqNum = s.GetSeqNo()
 	seq := ack.SeqNum
+	copy(ack.ExecID[:], "45601TN0000007")
 	if err := s.Send(&ack); err != nil {
 		return err
 	}
@@ -60,7 +61,7 @@ func (o *orderEntry) OnOrderNew(ctx context.Context, no *fix.NewOrderSingle514, 
 	fill := fix.ExecutionReportTradeOutright525{}
 	fill.SeqNum = s.GetSeqNo()
 	fill.UUID = s.GetUUID()
-	copy(fill.ExecID[:], uuid.New().String())
+	copy(fill.ExecID[:], "45601TN0000007")
 	copy(fill.SenderID[:], "CME")
 	fill.ClOrdID = no.ClOrdID
 	fill.PartyDetailsListReqID = 0
