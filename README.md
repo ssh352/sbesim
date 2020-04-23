@@ -12,6 +12,7 @@ clean -- clean up dependencies and binaries
 fmt -- auto format file
 mockgen -- generate mock package
 test -- run unit test
+inttest -- run integration test
 run -- start service
 ```
 ### Prerequisites
@@ -23,6 +24,7 @@ run -- start service
 sbesim uses golang test framework and simply run below
 ```
 make test
+make inttest
 ```
 
 ## License
